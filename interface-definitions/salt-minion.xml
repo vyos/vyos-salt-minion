@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+
+<!--Salt-minion configuration -->
+
+<interfaceDefinition>
+  <node name="service">
+    <children>
+      <node name="salt-minion" owner="${vyos_conf_scripts_dir}/salt-minion.py">
+        <properties>
+          <help>Salt Minion</help>
+        </properties>
+        <children>
+          <leafNode name="master">
+            <properties>
+              <help>The hostname or IP address of the master.</help>
+              <multi/>
+            </properties>
+          </leafNode>
+          <leafNode name="ID">
+            <properties>
+              <help>Explicitly declare the id for this minion to use.</help>
+            </properties>
+          </leafNode>
+          <leafNode name="user">
+            <properties>
+              <help>The user to run the Salt processes.</help>
+            </properties>
+          </leafNode>
+        </children>
+      </node>
+    </children>
+  </node>
+</interfaceDefinition>
