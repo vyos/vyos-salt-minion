@@ -1,0 +1,295 @@
+#!/usr/bin/env python3
+#
+#    build-command-template: converts new style command definitions in XML
+#      to the old style (bunch of dirs and node.def's) command templates
+#
+#    Copyright (C) 2017 VyOS maintainers <maintainers@vyos.net>
+#
+#    This library is free software; you can redistribute it and/or
+#    modify it under the terms of the GNU Lesser General Public
+#    License as published by the Free Software Foundation; either
+#    version 2.1 of the License, or (at your option) any later version.
+#
+#    This library is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+#    Lesser General Public License for more details.
+#
+#    You should have received a copy of the GNU Lesser General Public
+#    License along with this library; if not, write to the Free Software
+#    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
+#    USA
+
+import sys
+import os
+import argparse
+import copy
+import functools
+
+from lxml import etree as ET
+
+# Defaults
+
+#validator_dir = "/usr/libexec/vyos/validators"
+validator_dir = "${vyos_validators_dir}"
+default_constraint_err_msg = "Invalid value"
+
+
+## Get arguments
+
+parser = argparse.ArgumentParser(description='Converts new-style XML interface definitions to old-style command templates')
+parser.add_argument('--debug', help='Enable debug information output', action='store_true')
+parser.add_argument('INPUT_FILE', type=str, help="XML interface definition file")
+parser.add_argument('SCHEMA_FILE', type=str, help="RelaxNG schema file")
+parser.add_argument('OUTPUT_DIR', type=str, help="Output directory")
+
+args = parser.parse_args()
+
+input_file = args.INPUT_FILE
+schema_file = args.SCHEMA_FILE
+output_dir = args.OUTPUT_DIR
+debug = args.debug
+
+#debug = True
+
+## Load and validate the inputs
+
+try:
+    xml = ET.parse(input_file)
+except Exception as e:
+    print("Failed to load interface definition file {0}".format(input_file))
+    print(e)
+    sys.exit(1)
+
+try:
+    relaxng_xml = ET.parse(schema_file)
+    validator = ET.RelaxNG(relaxng_xml)
+
+    if not validator.validate(xml):
+        print(validator.error_log)
+        print("Interface definition file {0} does not match the schema!".format(input_file))
+        sys.exit(1)
+except Exception as e:
+    print("Failed to load the XML schema {0}".format(schema_file))
+    print(e)
+    sys.exit(1)
+
+if not os.access(output_dir, os.W_OK):
+    print("The output directory {0} is not writeable".format(output_dir))
+    sys.exit(1)
+
+## If we got this far, everything must be ok and we can convert the file
+
+def make_path(l):
+    path = functools.reduce(os.path.join, l)
+    if debug:
+        print(path)
+    return path
+
+def get_properties(p):
+    props = {}
+
+    if p is None:
+        return props
+
+    # Get the help string
+    try:
+        props["help"] = p.find("help").text
+    except:
+        pass
+
+    # Get value help strings
+    try:
+        vhe = p.findall("valueHelp")
+        vh = []
+        for v in vhe:
+            vh.append( (v.find("format").text, v.find("description").text) )
+        props["val_help"] = vh
+    except:
+        props["val_help"] = []
+
+    # Get the constraint statements
+    error_msg = default_constraint_err_msg
+    # Get the error message if it's there
+    try:
+        error_msg = p.find("constraintErrorMessage").text
+    except:
+        pass
+
+    vce = p.find("constraint")
+    vc = []
+    if vce is not None:
+        # The old backend doesn't support multiple validators in OR mode
+        # so we emulate it
+
+        regexes = []
+        regex_elements = vce.findall("regex")
+        if regex_elements is not None:
+            regexes = list(map(lambda e: e.text.strip(), regex_elements))
+        if "" in regexes:
+            print("Warning: empty regex, node will be accepting any value")
+
+        validator_elements = vce.findall("validator")
+        validators = []
+        if validator_elements is not None:
+            for v in validator_elements:
+                v_name = os.path.join(validator_dir, v.get("name"))
+
+                # XXX: lxml returns None for empty arguments
+                v_argument = None
+                try:
+                    v_argument = v.get("argument")
+                except:
+                    pass
+                if v_argument is None:
+                    v_argument = ""
+
+                validators.append("{0} {1}".format(v_name, v_argument))
+
+
+        regex_args = " ".join(map(lambda s: "--regex \\\'{0}\\\'".format(s), regexes))
+        validator_args = " ".join(map(lambda s: "--exec \\\"{0}\\\"".format(s), validators))
+        validator_script = '${vyos_libexec_dir}/validate-value.py'
+        validator_string = "exec \"{0} {1} {2} --value \\\'$VAR(@)\\\'\"; \"{3}\"".format(validator_script, regex_args, validator_args, error_msg)
+
+        props["constraint"] = validator_string
+
+    # Get the completion help strings
+    try:
+        che = p.findall("completionHelp")
+        ch = ""
+        for c in che:
+            scripts = c.findall("script")
+            paths = c.findall("path")
+            lists = c.findall("list")
+
+            # Current backend doesn't support multiple allowed: tags
+            # so we get to emulate it
+            comp_exprs = []
+            for i in lists:
+                comp_exprs.append("echo \"{0}\"".format(i.text))
+            for i in paths:
+                comp_exprs.append("/bin/cli-shell-api listNodes {0}".format(i.text))
+            for i in scripts:
+                comp_exprs.append("sh -c \"{0}\"".format(i.text))
+            comp_help = " && ".join(comp_exprs)
+            props["comp_help"] = comp_help
+    except:
+        props["comp_help"] = []
+
+    # Get priority
+    try:
+        props["priority"] = p.find("priority").text
+    except:
+        pass
+
+    # Get "multi"
+    if p.find("multi") is not None:
+        props["multi"] = True
+
+    # Get "valueless"
+    if p.find("valueless") is not None:
+        props["valueless"] = True
+
+    return props
+
+def make_node_def(props):
+    # XXX: replace with a template processor if it grows
+    #      out of control
+
+    node_def = ""
+
+    if "tag" in props:
+        node_def += "tag:\n"
+
+    if "multi" in props:
+        node_def += "multi:\n"
+
+    if "type" in props:
+        # Will always be txt in practice if it's set
+        node_def += "type: {0}\n".format(props["type"])
+
+    if "priority" in props:
+        node_def += "priority: {0}\n".format(props["priority"])
+
+    if "help" in props:
+        node_def += "help: {0}\n".format(props["help"])
+
+    if "val_help" in props:
+        for v in props["val_help"]:
+            node_def += "val_help: {0}; {1}\n".format(v[0], v[1])
+
+    if "comp_help" in props:
+        node_def += "allowed: {0}\n".format(props["comp_help"])
+
+    if "constraint" in props:
+        node_def += "syntax:expression: {0}\n".format(props["constraint"])
+
+    if "owner" in props:
+        node_def += "end: sudo sh -c \"{0}\"\n".format(props["owner"])
+
+    if debug:
+        print("The contents of the node.def file:\n", node_def)
+
+    return node_def
+
+def process_node(n, tmpl_dir):
+    # Avoid mangling the path from the outer call
+    my_tmpl_dir = copy.copy(tmpl_dir)
+
+    props_elem = n.find("properties")
+    children = n.find("children")
+
+    name = n.get("name")
+    owner = n.get("owner")
+    node_type = n.tag
+
+    my_tmpl_dir.append(name)
+
+    print("Name of the node: {0}. Created directory: {1}\n".format(name, "/".join(my_tmpl_dir)), end="")
+    os.makedirs(make_path(my_tmpl_dir), exist_ok=True)
+
+    props = get_properties(props_elem)
+    if owner:
+        props["owner"] = owner
+    # Type should not be set for non-tag, non-leaf nodes
+    # For non-valueless leaf nodes, set the type to txt: to make them have some type,
+    # actual value validation is handled by constraints translated to syntax:expression:
+    if node_type != "node":
+        if "valueless" not in props.keys():
+            props["type"] = "txt"
+    if node_type == "tagNode":
+        props["tag"] = "True"
+
+
+    nodedef_path = os.path.join(make_path(my_tmpl_dir), "node.def")
+    if not os.path.exists(nodedef_path):
+        with open(nodedef_path, "w") as f:
+            f.write(make_node_def(props))
+    else:
+        # Something has already generated that file
+        pass
+
+
+    if node_type == "node":
+        inner_nodes = children.iterfind("*")
+        for inner_n in inner_nodes:
+            process_node(inner_n, my_tmpl_dir)
+    if node_type == "tagNode":
+        my_tmpl_dir.append("node.tag")
+        if debug:
+            print("Created path for the tagNode:", end="")
+        os.makedirs(make_path(my_tmpl_dir), exist_ok=True)
+        inner_nodes = children.iterfind("*")
+        for inner_n in inner_nodes:
+            process_node(inner_n, my_tmpl_dir)
+    else:
+        # This is a leaf node
+        pass
+
+
+root = xml.getroot()
+
+nodes = root.iterfind("*")
+for n in nodes:
+    process_node(n, [output_dir])

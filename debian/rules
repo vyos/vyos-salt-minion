@@ -1,0 +1,61 @@
+#!/usr/bin/make -f
+
+DIR := debian/vyos-1x
+VYOS_SBIN_DIR := usr/sbin/
+VYOS_BIN_DIR := usr/bin/
+VYOS_LIBEXEC_DIR := usr/libexec/vyos
+VYOS_DATA_DIR := /usr/share/vyos
+VYOS_CFG_TMPL_DIR := /opt/vyatta/share/vyatta-cfg/templates
+VYOS_OP_TMPL_DIR := /opt/vyatta/share/vyatta-op/templates
+
+MIGRATION_SCRIPTS_DIR := /opt/vyatta/etc/config-migrate/migrate/
+
+%:
+	dh $@ --with python3, --with quilt
+
+override_dh_auto_build:
+	make all
+
+override_dh_auto_install:
+	dh_install -pvyos-1x
+	cd python; python3 setup.py install --install-layout=deb --root ../$(DIR); cd ..
+
+	# Install scripts
+	mkdir -p $(DIR)/$(VYOS_SBIN_DIR)
+	mkdir -p $(DIR)/$(VYOS_BIN_DIR)
+	cp -r src/utils/* $(DIR)/$(VYOS_BIN_DIR)
+
+	# Install conf mode scripts
+	mkdir -p $(DIR)/$(VYOS_LIBEXEC_DIR)/conf_mode
+	cp -r src/conf_mode/* $(DIR)/$(VYOS_LIBEXEC_DIR)/conf_mode
+
+	# Install op mode scripts
+	mkdir -p $(DIR)/$(VYOS_LIBEXEC_DIR)/op_mode
+	cp -r src/op_mode/* $(DIR)/$(VYOS_LIBEXEC_DIR)/op_mode
+
+	# Install validators
+	mkdir -p $(DIR)/$(VYOS_LIBEXEC_DIR)/validators
+	cp -r src/validators/* $(DIR)/$(VYOS_LIBEXEC_DIR)/validators
+
+	# Install completion helpers
+	mkdir -p $(DIR)/$(VYOS_LIBEXEC_DIR)/completion
+	cp -r src/completion/* $(DIR)/$(VYOS_LIBEXEC_DIR)/completion
+
+	# Install helper scripts
+	cp -r src/helpers/* $(DIR)/$(VYOS_LIBEXEC_DIR)/
+
+	# Install migration scripts
+	mkdir -p $(DIR)/$(MIGRATION_SCRIPTS_DIR)
+	cp -r src/migration-scripts/* $(DIR)/$(MIGRATION_SCRIPTS_DIR)
+
+	# Install configuration command definitions
+	mkdir -p $(DIR)/$(VYOS_CFG_TMPL_DIR)
+	cp -r templates-cfg/* $(DIR)/$(VYOS_CFG_TMPL_DIR)
+
+	# Install operational command definitions
+	mkdir -p $(DIR)/$(VYOS_OP_TMPL_DIR)
+	cp -r templates-op/* $(DIR)/$(VYOS_OP_TMPL_DIR)
+
+	# Install data files
+	mkdir -p $(DIR)/$(VYOS_DATA_DIR)
+	cp -r data/* $(DIR)/$(VYOS_DATA_DIR)
