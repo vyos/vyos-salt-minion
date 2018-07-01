@@ -54,7 +54,7 @@ id: {{ id }}
 """
 
 default_config_data = {
-    'master' : 'salt'
+    'master' : 'salt',
     'user': 'vyos',
     'id': socket.gethostname()
 }
