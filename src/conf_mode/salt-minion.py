@@ -18,6 +18,7 @@
 
 import sys
 import os
+import pwd
 import socket
 
 import jinja2
@@ -37,7 +38,9 @@ config_tmpl = """
 
 # Set the location of the salt master server, if the master server cannot be
 # resolved, then the minion will fail to start.
-master: {{ master }}
+{% for host in master -%}
+master: {{ host }}
+{% endfor %}
 
 # The user to run salt
 user: {{ user }}
@@ -50,13 +53,17 @@ pki_dir: /config/salt/pki/minion
 # Since salt uses detached ids it is possible to run multiple minions on the
 # same machine but with different ids, this can be useful for salt compute
 # clusters.
-id: {{ id }}
+id: {{ salt_id }}
+
+mine_enabled: True
+mine_return_job: False
+mine_interval: 60
 """
 
 default_config_data = {
     'master' : 'salt',
     'user': 'vyos',
-    'id': socket.gethostname()
+    'salt_id': socket.gethostname()
 }
 
 def get_config():
@@ -72,17 +79,17 @@ def get_config():
         salt['master'] = master
 
     if conf.exists('ID'):
-        id = conf.return_values('ID')
-        salt['id'] = id
+        salt['salt_id'] = conf.return_value('ID')
 
     if conf.exists('user'):
-        user = conf.return_values('user')
-        salt['user'] = user
+        salt['user'] = conf.return_value('user')
 
     return salt
 
 def generate(salt):
+    paths = ['/etc/salt/','/var/run/salt','/opt/vyatta/etc/config/salt/'] 
     directory = '/opt/vyatta/etc/config/salt/pki/minion'
+    uid = pwd.getpwnam(salt['user']).pw_uid
 
     if salt is None:
         return None
@@ -94,6 +101,13 @@ def generate(salt):
     config_text = tmpl.render(salt)
     with open(config_file, 'w') as f:
         f.write(config_text)
+    path = "/etc/salt/"  
+    for path in paths:
+      for root, dirs, files in os.walk(path):  
+        for usgr in dirs:  
+          os.chown(os.path.join(root, usgr), uid, 100)
+        for usgr in files:
+          os.chown(os.path.join(root, usgr), uid, 100)
     return None
 
 def apply(salt):
