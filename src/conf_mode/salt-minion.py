@@ -82,8 +82,12 @@ def get_config():
     return salt
 
 def generate(salt):
+    directory = '/config/salt/pki/minion'
     if salt is None:
         return None
+
+    if not os.path.exists(directory):
+        os.makedirs(directory)
 
     tmpl = jinja2.Template(config_tmpl)
     config_text = tmpl.render(salt)
