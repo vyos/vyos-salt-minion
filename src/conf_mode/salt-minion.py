@@ -82,7 +82,8 @@ def get_config():
     return salt
 
 def generate(salt):
-    directory = '/config/salt/pki/minion'
+    directory = '/opt/vyatta/etc/config/salt/pki/minion'
+
     if salt is None:
         return None
 
@@ -108,7 +109,6 @@ def apply(salt):
 if __name__ == '__main__':
     try:
         c = get_config()
-        verify(c)
         generate(c)
         apply(c)
     except ConfigError as e:
