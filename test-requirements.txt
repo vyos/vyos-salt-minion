@@ -1,5 +1,0 @@
-python/
-lxml
-pylint
-nose
-coverage

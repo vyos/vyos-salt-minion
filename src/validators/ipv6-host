@@ -1,3 +1,0 @@
-#!/bin/sh
-
-ipaddrcheck --is-ipv6-host $1
