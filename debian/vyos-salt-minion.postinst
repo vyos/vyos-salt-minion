@@ -1,0 +1,10 @@
+#!/bin/sh -e
+if ! deb-systemd-helper --quiet was-enabled salt-minion.service; then
+	# Enables the unit on first installation, creates new
+	# symlinks on upgrades if the unit file has changed.
+	deb-systemd-helper disable salt-minion.service >/dev/null || true
+fi
+
+if [ -x "/etc/init.d/salt-minion" ]; then
+	update-rc.d -f salt-minion remove >/dev/null
+fi
