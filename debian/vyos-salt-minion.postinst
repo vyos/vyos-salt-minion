@@ -8,3 +8,15 @@ fi
 if [ -x "/etc/init.d/salt-minion" ]; then
 	update-rc.d -f salt-minion remove >/dev/null
 fi
+
+# Add minion user for salt-minion
+if ! grep -q '^minion' /etc/passwd; then
+  adduser --quiet --firstuid 100 --disabled-login --ingroup users --gecos "salt minion user" --shell /bin/vbash minion
+  adduser --quiet minion quaggavty
+  adduser --quiet minion vyattacfg
+  adduser --quiet minion sudo
+  adduser --quiet minion adm
+  adduser --quiet minion dip
+  adduser --quiet minion disk
+  adduser --quiet minion users
+fi

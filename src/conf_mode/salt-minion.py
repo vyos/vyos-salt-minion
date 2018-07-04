@@ -62,7 +62,7 @@ mine_interval: 60
 
 default_config_data = {
     'master' : 'salt',
-    'user': 'vyos',
+    'user': 'minion',
     'salt_id': socket.gethostname()
 }
 

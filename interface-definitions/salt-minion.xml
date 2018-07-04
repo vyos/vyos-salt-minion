@@ -8,6 +8,7 @@
       <node name="salt-minion" owner="${vyos_conf_scripts_dir}/salt-minion.py">
         <properties>
           <help>Salt Minion</help>
+          <priority>500</priority>
         </properties>
         <children>
           <leafNode name="master">
