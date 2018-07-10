@@ -11,6 +11,42 @@
           <priority>500</priority>
         </properties>
         <children>
+          <leafNode name="hash_type">
+            <properties>
+              <help>The hash_type is the hash to use when discovering the hash of a file on the master server.</help>
+            </properties>
+          </leafNode>
+          <leafNode name="log_file">
+            <properties>
+              <help>The location of the minion log file.</help>
+            </properties>
+          </leafNode>
+          <leafNode name="log_level">
+            <properties>
+              <help>Log level</help>
+              <valueHelp>
+                <format>garbage</format>
+              </valueHelp>
+              <valueHelp>
+                <format>trace</format>
+              </valueHelp>
+              <valueHelp>
+                <format>debug</format>
+              </valueHelp>
+              <valueHelp>
+                <format>info</format>
+              </valueHelp>
+              <valueHelp>
+                <format>warning</format>
+              </valueHelp>
+              <valueHelp>
+                <format>error</format>
+              </valueHelp>
+              <valueHelp>
+                <format>critical</format>
+              </valueHelp>
+            </properties>
+          </leafNode>
           <leafNode name="master">
             <properties>
               <help>The hostname or IP address of the master.</help>
@@ -25,6 +61,16 @@
           <leafNode name="user">
             <properties>
               <help>The user to run the Salt processes.</help>
+            </properties>
+          </leafNode>
+          <leafNode name="mine_interval">
+            <properties>
+              <help>The number of minutes between mine updates.</help>
+            </properties>
+          </leafNode>
+          <leafNode name="master-key">
+            <properties>
+              <help>Enables verification of the master-public-signature returned by the master in auth-replies.</help>
             </properties>
           </leafNode>
         </children>
