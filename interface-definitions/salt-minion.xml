@@ -26,24 +26,31 @@
               <help>Log level</help>
               <valueHelp>
                 <format>garbage</format>
+                <description>log garbage info</description>
               </valueHelp>
               <valueHelp>
                 <format>trace</format>
+                <description>log trace info</description>
               </valueHelp>
               <valueHelp>
                 <format>debug</format>
+                <description>log debug info</description>
               </valueHelp>
               <valueHelp>
                 <format>info</format>
+                <description>log info</description>
               </valueHelp>
               <valueHelp>
                 <format>warning</format>
+                <description>log warning info</description>
               </valueHelp>
               <valueHelp>
                 <format>error</format>
+                <description>log error info</description>
               </valueHelp>
               <valueHelp>
                 <format>critical</format>
+                <description>log critical info</description>
               </valueHelp>
             </properties>
           </leafNode>
