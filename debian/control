@@ -14,7 +14,8 @@ Standards-Version: 3.9.6
 
 Package: vyos-salt-minion
 Architecture: all
-Depends: salt-minion,
+Depends: python3-urllib3,
+  salt-minion,
   vyos-1x,
   ${shlibs:Depends},
   ${misc:Depends}
