@@ -128,8 +128,8 @@ def get_config():
         master = conf.return_values('master')
         salt['master'] = master
 
-    if conf.exists('ID'):
-        salt['salt_id'] = conf.return_value('ID')
+    if conf.exists('id'):
+        salt['salt_id'] = conf.return_value('id')
 
     if conf.exists('user'):
         salt['user'] = conf.return_value('user')
